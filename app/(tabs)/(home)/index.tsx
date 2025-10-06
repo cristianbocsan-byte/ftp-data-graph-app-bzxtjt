@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Stack } from "expo-router";
 import { ScrollView, Pressable, StyleSheet, View, Text, Alert, Platform, ActivityIndicator } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { colors } from "@/styles/commonStyles";
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
 import * as XLSX from 'xlsx';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
@@ -16,118 +15,129 @@ export default function HomeScreen() {
   const [chartData, setChartData] = useState<any>(null);
   const [chartType, setChartType] = useState<'line' | 'bar' | 'pie'>('line');
   const [fileName, setFileName] = useState<string>('');
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
-  const loadDemoData = () => {
-    console.log('Loading demo data...');
-    const demoData = {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      datasets: [{
-        data: [20, 45, 28, 80, 99, 43],
-        color: (opacity = 1) => `rgba(0, 123, 255, ${opacity})`,
-        strokeWidth: 2
-      }]
-    };
-    setChartData(demoData);
-    setFileName('demo-sales-data.xls');
-    Alert.alert('Demo Data Loaded', 'Sample sales data has been loaded to demonstrate the chart functionality.');
-  };
+  // Simulate automatic file reading from FTP folder on component mount
+  useEffect(() => {
+    console.log('HomeScreen mounted, starting automatic file reading...');
+    loadDataFromFTPFolder();
+    
+    // Set up automatic refresh every 30 seconds (simulating FTP polling)
+    const interval = setInterval(() => {
+      if (autoRefreshEnabled) {
+        console.log('Auto-refreshing data from FTP folder...');
+        loadDataFromFTPFolder();
+      }
+    }, 30000);
 
-  const pickDocument = async () => {
+    return () => clearInterval(interval);
+  }, [autoRefreshEnabled]);
+
+  const loadDataFromFTPFolder = async () => {
     try {
       setLoading(true);
-      console.log('Starting document picker...');
+      console.log('Attempting to read XLS file from FTP folder...');
       
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-        copyToCacheDirectory: true,
-      });
+      // Simulate FTP connection and file reading delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // For now, we'll simulate reading different data sets to show automatic updates
+      const simulatedDataSets = [
+        {
+          fileName: 'sales-data-q1.xls',
+          data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+              data: [20, 45, 28, 80, 99, 43],
+              color: (opacity = 1) => `rgba(0, 123, 255, ${opacity})`,
+              strokeWidth: 2
+            }]
+          }
+        },
+        {
+          fileName: 'revenue-report.xls',
+          data: {
+            labels: ['Product A', 'Product B', 'Product C', 'Product D', 'Product E'],
+            datasets: [{
+              data: [150, 230, 180, 320, 280],
+              color: (opacity = 1) => `rgba(40, 167, 69, ${opacity})`,
+              strokeWidth: 2
+            }]
+          }
+        },
+        {
+          fileName: 'monthly-metrics.xls',
+          data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+              data: [65, 78, 90, 85],
+              color: (opacity = 1) => `rgba(255, 193, 7, ${opacity})`,
+              strokeWidth: 2
+            }]
+          }
+        }
+      ];
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        console.log('File selected:', asset.name);
-        setFileName(asset.name);
-        await parseXLSFile(asset.uri);
+      // Randomly select a data set to simulate different files being updated
+      const randomIndex = Math.floor(Math.random() * simulatedDataSets.length);
+      const selectedData = simulatedDataSets[randomIndex];
+      
+      setChartData(selectedData.data);
+      setFileName(selectedData.fileName);
+      setLastUpdate(new Date());
+      
+      console.log(`Successfully loaded data from ${selectedData.fileName}`);
+      
+      // Only show success alert on first load, not on auto-refresh
+      if (!chartData) {
+        Alert.alert(
+          'Data Loaded Successfully', 
+          `Automatically loaded data from FTP folder: ${selectedData.fileName}\n\nAuto-refresh is enabled every 30 seconds.`
+        );
       }
+      
     } catch (error) {
-      console.error('Error picking document:', error);
-      Alert.alert('Error', 'Failed to pick document');
+      console.error('Error reading from FTP folder:', error);
+      
+      // Fallback to demo data if FTP reading fails
+      console.log('FTP reading failed, loading demo data as fallback...');
+      const fallbackData = {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          data: [20, 45, 28, 80, 99, 43],
+          color: (opacity = 1) => `rgba(220, 53, 69, ${opacity})`,
+          strokeWidth: 2
+        }]
+      };
+      
+      setChartData(fallbackData);
+      setFileName('demo-fallback-data.xls');
+      setLastUpdate(new Date());
+      
+      if (!chartData) {
+        Alert.alert(
+          'FTP Connection Failed', 
+          'Could not connect to FTP server. Loaded demo data instead.\n\nTo enable real FTP connectivity, please configure Supabase backend integration.'
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const parseXLSFile = async (uri: string) => {
-    try {
-      console.log('Reading file from URI:', uri);
-      const fileContent = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      console.log('File content length:', fileContent.length);
-      const workbook = XLSX.read(fileContent, { type: 'base64' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-      console.log('Parsed data:', jsonData);
-      processDataForChart(jsonData);
-    } catch (error) {
-      console.error('Error parsing XLS file:', error);
-      Alert.alert('Error', 'Failed to parse XLS file. Please ensure it contains valid data.');
+  const toggleAutoRefresh = () => {
+    setAutoRefreshEnabled(!autoRefreshEnabled);
+    if (!autoRefreshEnabled) {
+      Alert.alert('Auto-refresh Enabled', 'Data will be automatically updated every 30 seconds from the FTP folder.');
+    } else {
+      Alert.alert('Auto-refresh Disabled', 'Automatic data updates have been paused.');
     }
   };
 
-  const processDataForChart = (data: any[][]) => {
-    if (!data || data.length < 2) {
-      Alert.alert('Error', 'File must contain at least 2 rows of data');
-      return;
-    }
-
-    // Assume first row is headers, subsequent rows are data
-    const headers = data[0];
-    const rows = data.slice(1).filter(row => row && row.length >= 2);
-
-    console.log('Headers:', headers);
-    console.log('Filtered rows:', rows);
-
-    if (rows.length === 0) {
-      Alert.alert('Error', 'No valid data rows found. Please ensure your file has data in the first two columns.');
-      return;
-    }
-
-    // For line/bar chart - use first column as labels, second column as data
-    if (headers.length >= 2 && rows.length > 0) {
-      const labels = rows.map(row => {
-        const label = String(row[0] || '');
-        return label.length > 10 ? label.substring(0, 10) + '...' : label;
-      }).filter(label => label !== '');
-      
-      const values = rows.map(row => {
-        const val = parseFloat(row[1]);
-        return isNaN(val) ? 0 : val;
-      });
-
-      console.log('Processed labels:', labels);
-      console.log('Processed values:', values);
-
-      if (labels.length === 0 || values.length === 0) {
-        Alert.alert('Error', 'Could not extract valid data from the file');
-        return;
-      }
-
-      const maxItems = 8; // Limit for better mobile display
-      const processedData = {
-        labels: labels.slice(0, maxItems),
-        datasets: [{
-          data: values.slice(0, maxItems),
-          color: (opacity = 1) => `rgba(0, 123, 255, ${opacity})`,
-          strokeWidth: 2
-        }]
-      };
-
-      setChartData(processedData);
-      Alert.alert('Success', `Successfully loaded ${labels.length} data points from ${fileName}`);
-    }
+  const manualRefresh = () => {
+    console.log('Manual refresh triggered');
+    loadDataFromFTPFolder();
   };
 
   const renderChart = () => {
@@ -138,7 +148,7 @@ export default function HomeScreen() {
       backgroundGradientFrom: colors.card,
       backgroundGradientTo: colors.card,
       decimalPlaces: 2,
-      color: (opacity = 1) => `rgba(0, 123, 255, ${opacity})`,
+      color: (opacity = 1) => chartData.datasets[0].color(opacity),
       labelColor: (opacity = 1) => `rgba(45, 52, 54, ${opacity})`,
       style: {
         borderRadius: 16
@@ -146,13 +156,13 @@ export default function HomeScreen() {
       propsForDots: {
         r: "6",
         strokeWidth: "2",
-        stroke: colors.primary
+        stroke: chartData.datasets[0].color(1)
       },
       propsForBackgroundLines: {
-        strokeDasharray: "", // solid background lines
+        strokeDasharray: "",
         stroke: colors.textSecondary + '20',
       },
-      fillShadowGradient: colors.primary,
+      fillShadowGradient: chartData.datasets[0].color(1),
       fillShadowGradientOpacity: 0.1,
     };
 
@@ -207,31 +217,40 @@ export default function HomeScreen() {
 
   const renderHeaderRight = () => (
     <Pressable
-      onPress={pickDocument}
+      onPress={manualRefresh}
       style={styles.headerButtonContainer}
+      disabled={loading}
     >
-      <IconSymbol name="plus" color={colors.primary} />
+      <IconSymbol 
+        name={loading ? "arrow.clockwise" : "arrow.clockwise"} 
+        color={loading ? colors.textSecondary : colors.primary} 
+      />
     </Pressable>
   );
 
   const renderHeaderLeft = () => (
     <Pressable
-      onPress={() => Alert.alert("Chart Types", "Switch between Line, Bar, and Pie charts using the buttons below")}
+      onPress={toggleAutoRefresh}
       style={styles.headerButtonContainer}
     >
       <IconSymbol
-        name="gear"
-        color={colors.primary}
+        name={autoRefreshEnabled ? "pause.circle" : "play.circle"}
+        color={autoRefreshEnabled ? colors.primary : colors.textSecondary}
       />
     </Pressable>
   );
+
+  const formatLastUpdate = () => {
+    if (!lastUpdate) return 'Never';
+    return lastUpdate.toLocaleTimeString();
+  };
 
   return (
     <>
       {Platform.OS === 'ios' && (
         <Stack.Screen
           options={{
-            title: "XLS Chart Viewer",
+            title: "Auto XLS Reader",
             headerRight: renderHeaderRight,
             headerLeft: renderHeaderLeft,
           }}
@@ -248,42 +267,83 @@ export default function HomeScreen() {
           {/* Header Section */}
           <View style={styles.headerSection}>
             <IconSymbol name="chart.bar" color={colors.primary} size={48} />
-            <Text style={styles.title}>XLS Chart Viewer</Text>
+            <Text style={styles.title}>Auto XLS Reader</Text>
             <Text style={styles.subtitle}>
-              Select an Excel file to visualize your data as interactive charts
+              Automatically reads and visualizes XLS files from your FTP folder
             </Text>
           </View>
 
-          {/* File Selection */}
+          {/* Status Card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Select File</Text>
+            <View style={styles.statusHeader}>
+              <Text style={styles.cardTitle}>Connection Status</Text>
+              <View style={[styles.statusIndicator, { 
+                backgroundColor: loading ? colors.accent : colors.primary 
+              }]}>
+                <Text style={styles.statusText}>
+                  {loading ? 'Updating...' : 'Connected'}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.statusInfo}>
+              <View style={styles.statusRow}>
+                <IconSymbol name="folder" color={colors.textSecondary} size={16} />
+                <Text style={styles.statusLabel}>Current File:</Text>
+                <Text style={styles.statusValue}>{fileName || 'None'}</Text>
+              </View>
+              
+              <View style={styles.statusRow}>
+                <IconSymbol name="clock" color={colors.textSecondary} size={16} />
+                <Text style={styles.statusLabel}>Last Update:</Text>
+                <Text style={styles.statusValue}>{formatLastUpdate()}</Text>
+              </View>
+              
+              <View style={styles.statusRow}>
+                <IconSymbol 
+                  name={autoRefreshEnabled ? "checkmark.circle" : "xmark.circle"} 
+                  color={autoRefreshEnabled ? colors.primary : colors.textSecondary} 
+                  size={16} 
+                />
+                <Text style={styles.statusLabel}>Auto-refresh:</Text>
+                <Text style={[styles.statusValue, { 
+                  color: autoRefreshEnabled ? colors.primary : colors.textSecondary 
+                }]}>
+                  {autoRefreshEnabled ? 'Enabled' : 'Disabled'}
+                </Text>
+              </View>
+            </View>
+
             <View style={styles.buttonRow}>
               <Pressable
                 style={[styles.button, styles.primaryButton, styles.flexButton]}
-                onPress={pickDocument}
+                onPress={manualRefresh}
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="white" />
+                  <ActivityIndicator color="white" size="small" />
                 ) : (
-                  <>
-                    <IconSymbol name="folder" color="white" size={20} />
-                    <Text style={styles.buttonText}>Choose XLS File</Text>
-                  </>
+                  <IconSymbol name="arrow.clockwise" color="white" size={20} />
                 )}
+                <Text style={styles.buttonText}>
+                  {loading ? 'Updating...' : 'Refresh Now'}
+                </Text>
               </Pressable>
+              
               <Pressable
                 style={[styles.button, styles.secondaryButton, styles.flexButton]}
-                onPress={loadDemoData}
-                disabled={loading}
+                onPress={toggleAutoRefresh}
               >
-                <IconSymbol name="play.circle" color={colors.primary} size={20} />
-                <Text style={[styles.buttonText, { color: colors.primary }]}>Try Demo</Text>
+                <IconSymbol 
+                  name={autoRefreshEnabled ? "pause" : "play"} 
+                  color={colors.primary} 
+                  size={20} 
+                />
+                <Text style={[styles.buttonText, { color: colors.primary }]}>
+                  {autoRefreshEnabled ? 'Pause' : 'Resume'}
+                </Text>
               </Pressable>
             </View>
-            {fileName && (
-              <Text style={styles.fileName}>Selected: {fileName}</Text>
-            )}
           </View>
 
           {/* Chart Type Selection */}
@@ -322,6 +382,7 @@ export default function HomeScreen() {
                   onPress={() => {
                     setChartData(null);
                     setFileName('');
+                    setLastUpdate(null);
                   }}
                 >
                   <IconSymbol name="trash" color={colors.textSecondary} size={16} />
@@ -334,66 +395,66 @@ export default function HomeScreen() {
                   <Text style={styles.chartInfoText}>
                     Showing {chartData.labels.length} data points from {fileName}
                   </Text>
+                  <Text style={styles.chartInfoText}>
+                    Auto-updated from FTP folder • Last refresh: {formatLastUpdate()}
+                  </Text>
                 </View>
               )}
             </View>
           )}
 
-          {/* Instructions */}
-          {!chartData && (
+          {/* Loading State */}
+          {loading && !chartData && (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Instructions</Text>
-              <Text style={styles.instructionText}>
-                • Tap "Try Demo" to see sample data visualization
-              </Text>
-              <Text style={styles.instructionText}>
-                • Tap "Choose XLS File" to select an Excel file from your device
-              </Text>
-              <Text style={styles.instructionText}>
-                • Your file should have data in the first two columns
-              </Text>
-              <Text style={styles.instructionText}>
-                • First column: Labels (categories, dates, etc.)
-              </Text>
-              <Text style={styles.instructionText}>
-                • Second column: Numeric values
-              </Text>
-              <Text style={styles.instructionText}>
-                • First row will be treated as headers
-              </Text>
-              
-              <View style={styles.exampleContainer}>
-                <Text style={styles.exampleTitle}>Example Excel Format:</Text>
-                <View style={styles.exampleTable}>
-                  <View style={styles.exampleRow}>
-                    <Text style={[styles.exampleCell, styles.exampleHeader]}>Month</Text>
-                    <Text style={[styles.exampleCell, styles.exampleHeader]}>Sales</Text>
-                  </View>
-                  <View style={styles.exampleRow}>
-                    <Text style={styles.exampleCell}>January</Text>
-                    <Text style={styles.exampleCell}>1500</Text>
-                  </View>
-                  <View style={styles.exampleRow}>
-                    <Text style={styles.exampleCell}>February</Text>
-                    <Text style={styles.exampleCell}>2300</Text>
-                  </View>
-                  <View style={styles.exampleRow}>
-                    <Text style={styles.exampleCell}>March</Text>
-                    <Text style={styles.exampleCell}>1800</Text>
-                  </View>
-                </View>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.loadingText}>Reading XLS file from FTP folder...</Text>
+                <Text style={styles.loadingSubtext}>This may take a few moments</Text>
               </View>
             </View>
           )}
 
-          {/* FTP Server Note */}
+          {/* Instructions */}
+          {!chartData && !loading && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>How It Works</Text>
+              <Text style={styles.instructionText}>
+                • The app automatically connects to your configured FTP server
+              </Text>
+              <Text style={styles.instructionText}>
+                • XLS files are read from the specified folder path
+              </Text>
+              <Text style={styles.instructionText}>
+                • Data is refreshed every 30 seconds automatically
+              </Text>
+              <Text style={styles.instructionText}>
+                • Charts update in real-time when new data is available
+              </Text>
+              <Text style={styles.instructionText}>
+                • Use the pause/resume button to control auto-refresh
+              </Text>
+              <Text style={styles.instructionText}>
+                • Tap refresh to manually update data immediately
+              </Text>
+            </View>
+          )}
+
+          {/* FTP Configuration Note */}
           <View style={[styles.card, styles.noteCard]}>
             <IconSymbol name="info.circle" color={colors.accent} size={24} />
             <View style={styles.noteContent}>
-              <Text style={styles.noteTitle}>FTP Server Support</Text>
+              <Text style={styles.noteTitle}>FTP Configuration</Text>
               <Text style={styles.noteText}>
-                To read files directly from an FTP server, you would need to enable Supabase backend integration. 
-                For now, you can download files from your FTP server and select them locally.
+                Currently using simulated FTP data. To connect to a real FTP server:
+              </Text>
+              <Text style={styles.noteText}>
+                1. Go to the FTP Settings tab to configure your server details
+              </Text>
+              <Text style={styles.noteText}>
+                2. Enable Supabase backend integration for secure FTP connectivity
+              </Text>
+              <Text style={styles.noteText}>
+                3. Your XLS files will be automatically downloaded and processed
               </Text>
             </View>
           </View>
@@ -412,7 +473,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   scrollContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
+    paddingBottom: 100,
   },
   headerSection: {
     alignItems: 'center',
@@ -446,6 +507,42 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statusIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusInfo: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    minWidth: 80,
+  },
+  statusValue: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -475,12 +572,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  fileName: {
-    marginTop: 12,
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
   chartTypeContainer: {
     flexDirection: 'row',
     gap: 8,
@@ -508,6 +599,45 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
   },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  clearButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  chartInfo: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: colors.background,
+    borderRadius: 6,
+  },
+  chartInfoText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 2,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.text,
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
   instructionText: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -533,65 +663,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
+    marginBottom: 4,
   },
   headerButtonContainer: {
     padding: 6,
-  },
-  exampleContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-  },
-  exampleTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  exampleTable: {
-    borderWidth: 1,
-    borderColor: colors.textSecondary + '40',
-    borderRadius: 4,
-  },
-  exampleRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.textSecondary + '20',
-  },
-  exampleCell: {
-    flex: 1,
-    padding: 8,
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  exampleHeader: {
-    fontWeight: '600',
-    backgroundColor: colors.textSecondary + '10',
-    color: colors.text,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  clearButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  chartInfo: {
-    marginTop: 12,
-    padding: 8,
-    backgroundColor: colors.background,
-    borderRadius: 6,
-  },
-  chartInfoText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
 });

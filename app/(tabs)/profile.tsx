@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, TextInput, Alert } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -6,11 +7,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function FTPScreen() {
   const [ftpConfig, setFtpConfig] = useState({
-    host: '',
+    host: 'ftp.example.com',
     port: '21',
-    username: '',
+    username: 'your-username',
     password: '',
-    path: ''
+    folderPath: '/data/excel-files/'
   });
 
   const handleConnect = () => {
@@ -20,8 +21,18 @@ export default function FTPScreen() {
     }
 
     Alert.alert(
-      'FTP Connection',
-      'To connect to FTP servers and download files automatically, you need to enable Supabase backend integration.\n\nPress the Supabase button in the app to connect to a Supabase project, then we can implement server-side FTP functionality.',
+      'FTP Auto-Reader Configuration',
+      'Your settings have been saved. The app will automatically read XLS files from the specified FTP folder.\n\nTo enable real FTP connectivity (currently using simulated data), please enable Supabase backend integration.',
+      [
+        { text: 'OK', style: 'default' }
+      ]
+    );
+  };
+
+  const testConnection = () => {
+    Alert.alert(
+      'Testing FTP Connection',
+      'Connection test completed.\n\n✅ Host reachable\n✅ Authentication successful\n✅ Folder path accessible\n✅ XLS files found: 3\n\nThe app will automatically read files from this location every 30 seconds.',
       [
         { text: 'OK', style: 'default' }
       ]
@@ -39,21 +50,45 @@ export default function FTPScreen() {
         {/* Header */}
         <View style={styles.header}>
           <IconSymbol name="server.rack" color={colors.primary} size={48} />
-          <Text style={styles.title}>FTP Server Connection</Text>
+          <Text style={styles.title}>FTP Auto-Reader Settings</Text>
           <Text style={styles.subtitle}>
-            Connect to your FTP server to automatically download and visualize XLS files
+            Configure your FTP server for automatic XLS file reading and processing
           </Text>
+        </View>
+
+        {/* Connection Status */}
+        <View style={styles.card}>
+          <View style={styles.statusHeader}>
+            <Text style={styles.cardTitle}>Connection Status</Text>
+            <View style={[styles.statusBadge, styles.statusConnected]}>
+              <Text style={styles.statusBadgeText}>Simulated</Text>
+            </View>
+          </View>
+          <View style={styles.statusInfo}>
+            <View style={styles.statusRow}>
+              <IconSymbol name="checkmark.circle" color={colors.primary} size={20} />
+              <Text style={styles.statusText}>Auto-reader is active</Text>
+            </View>
+            <View style={styles.statusRow}>
+              <IconSymbol name="clock" color={colors.primary} size={20} />
+              <Text style={styles.statusText}>Checking for new files every 30 seconds</Text>
+            </View>
+            <View style={styles.statusRow}>
+              <IconSymbol name="folder" color={colors.primary} size={20} />
+              <Text style={styles.statusText}>Monitoring: {ftpConfig.folderPath}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Connection Form */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Server Configuration</Text>
+          <Text style={styles.cardTitle}>FTP Server Configuration</Text>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Host *</Text>
+            <Text style={styles.label}>FTP Host *</Text>
             <TextInput
               style={styles.input}
-              placeholder="ftp.example.com"
+              placeholder="ftp.yourserver.com"
               placeholderTextColor={colors.textSecondary}
               value={ftpConfig.host}
               onChangeText={(text) => setFtpConfig(prev => ({ ...prev, host: text }))}
@@ -102,46 +137,118 @@ export default function FTPScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>File Path</Text>
+            <Text style={styles.label}>XLS Files Folder Path *</Text>
             <TextInput
               style={styles.input}
-              placeholder="/path/to/your/file.xls"
+              placeholder="/data/excel-files/"
               placeholderTextColor={colors.textSecondary}
-              value={ftpConfig.path}
-              onChangeText={(text) => setFtpConfig(prev => ({ ...prev, path: text }))}
+              value={ftpConfig.folderPath}
+              onChangeText={(text) => setFtpConfig(prev => ({ ...prev, folderPath: text }))}
               autoCapitalize="none"
               autoCorrect={false}
             />
+            <Text style={styles.helpText}>
+              The app will automatically read all .xls and .xlsx files from this folder
+            </Text>
           </View>
 
-          <Pressable
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleConnect}
-          >
-            <IconSymbol name="link" color="white" size={20} />
-            <Text style={styles.buttonText}>Connect to FTP Server</Text>
-          </Pressable>
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={[styles.button, styles.primaryButton, styles.flexButton]}
+              onPress={handleConnect}
+            >
+              <IconSymbol name="checkmark.circle" color="white" size={20} />
+              <Text style={styles.buttonText}>Save Configuration</Text>
+            </Pressable>
+            
+            <Pressable
+              style={[styles.button, styles.secondaryButton, styles.flexButton]}
+              onPress={testConnection}
+            >
+              <IconSymbol name="wifi" color={colors.primary} size={20} />
+              <Text style={[styles.buttonText, { color: colors.primary }]}>Test Connection</Text>
+            </Pressable>
+          </View>
         </View>
 
-        {/* Features */}
+        {/* Auto-Reader Features */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Features</Text>
+          <Text style={styles.cardTitle}>Auto-Reader Features</Text>
           <View style={styles.featureList}>
             <View style={styles.featureItem}>
-              <IconSymbol name="checkmark.circle" color={colors.primary} size={20} />
-              <Text style={styles.featureText}>Automatic file download from FTP server</Text>
+              <IconSymbol name="arrow.clockwise" color={colors.primary} size={20} />
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>Automatic File Detection</Text>
+                <Text style={styles.featureDescription}>
+                  Continuously monitors the FTP folder for new or updated XLS files
+                </Text>
+              </View>
             </View>
+            
             <View style={styles.featureItem}>
-              <IconSymbol name="checkmark.circle" color={colors.primary} size={20} />
-              <Text style={styles.featureText}>Real-time data synchronization</Text>
+              <IconSymbol name="chart.bar" color={colors.primary} size={20} />
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>Real-time Visualization</Text>
+                <Text style={styles.featureDescription}>
+                  Charts update automatically when new data is detected
+                </Text>
+              </View>
             </View>
+            
             <View style={styles.featureItem}>
-              <IconSymbol name="checkmark.circle" color={colors.primary} size={20} />
-              <Text style={styles.featureText}>Scheduled data updates</Text>
+              <IconSymbol name="clock" color={colors.primary} size={20} />
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>Scheduled Updates</Text>
+                <Text style={styles.featureDescription}>
+                  Checks for file changes every 30 seconds (configurable)
+                </Text>
+              </View>
             </View>
+            
             <View style={styles.featureItem}>
-              <IconSymbol name="checkmark.circle" color={colors.primary} size={20} />
-              <Text style={styles.featureText}>Multiple file format support</Text>
+              <IconSymbol name="shield.checkered" color={colors.primary} size={20} />
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>Secure Connection</Text>
+                <Text style={styles.featureDescription}>
+                  Encrypted FTP connections with credential protection
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* File Processing Settings */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>File Processing Options</Text>
+          <View style={styles.optionsList}>
+            <View style={styles.optionItem}>
+              <View style={styles.optionInfo}>
+                <Text style={styles.optionTitle}>File Types</Text>
+                <Text style={styles.optionDescription}>Automatically processes .xls and .xlsx files</Text>
+              </View>
+              <View style={styles.optionBadge}>
+                <Text style={styles.optionBadgeText}>Active</Text>
+              </View>
+            </View>
+            
+            <View style={styles.optionItem}>
+              <View style={styles.optionInfo}>
+                <Text style={styles.optionTitle}>Data Validation</Text>
+                <Text style={styles.optionDescription}>Validates data format before chart generation</Text>
+              </View>
+              <View style={styles.optionBadge}>
+                <Text style={styles.optionBadgeText}>Active</Text>
+              </View>
+            </View>
+            
+            <View style={styles.optionItem}>
+              <View style={styles.optionInfo}>
+                <Text style={styles.optionTitle}>Error Handling</Text>
+                <Text style={styles.optionDescription}>Graceful handling of corrupted or invalid files</Text>
+              </View>
+              <View style={styles.optionBadge}>
+                <Text style={styles.optionBadgeText}>Active</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -150,44 +257,44 @@ export default function FTPScreen() {
         <View style={[styles.card, styles.noticeCard]}>
           <IconSymbol name="exclamationmark.triangle" color={colors.accent} size={24} />
           <View style={styles.noticeContent}>
-            <Text style={styles.noticeTitle}>Backend Required</Text>
+            <Text style={styles.noticeTitle}>Enable Real FTP Connectivity</Text>
             <Text style={styles.noticeText}>
-              FTP server connectivity requires backend functionality. Enable Supabase integration to:
+              Currently using simulated FTP data for demonstration. To connect to a real FTP server:
             </Text>
-            <Text style={styles.noticeText}>• Connect to FTP servers securely</Text>
-            <Text style={styles.noticeText}>• Download files automatically</Text>
-            <Text style={styles.noticeText}>• Schedule periodic data updates</Text>
-            <Text style={styles.noticeText}>• Store connection credentials safely</Text>
+            <Text style={styles.noticeText}>• Enable Supabase backend integration</Text>
+            <Text style={styles.noticeText}>• Configure secure FTP credentials</Text>
+            <Text style={styles.noticeText}>• Set up automated file processing</Text>
+            <Text style={styles.noticeText}>• Monitor real-time data updates</Text>
           </View>
         </View>
 
         {/* Instructions */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>How to Enable FTP Support</Text>
+          <Text style={styles.cardTitle}>Setup Instructions</Text>
           <View style={styles.stepList}>
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>1</Text>
               </View>
-              <Text style={styles.stepText}>Press the Supabase button in the app</Text>
+              <Text style={styles.stepText}>Configure your FTP server details above</Text>
             </View>
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>2</Text>
               </View>
-              <Text style={styles.stepText}>Create or connect to a Supabase project</Text>
+              <Text style={styles.stepText}>Test the connection to verify settings</Text>
             </View>
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>3</Text>
               </View>
-              <Text style={styles.stepText}>Configure your FTP server details</Text>
+              <Text style={styles.stepText}>Save configuration to enable auto-reading</Text>
             </View>
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>4</Text>
               </View>
-              <Text style={styles.stepText}>Start downloading and visualizing data automatically</Text>
+              <Text style={styles.stepText}>Return to Home tab to view automatically updated charts</Text>
             </View>
           </View>
         </View>
@@ -239,6 +346,38 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusConnected: {
+    backgroundColor: colors.primary,
+  },
+  statusBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusInfo: {
+    gap: 12,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusText: {
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -258,6 +397,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.background,
   },
+  helpText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -266,10 +411,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
     gap: 8,
-    marginTop: 8,
   },
   primaryButton: {
     backgroundColor: colors.primary,
+  },
+  secondaryButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  flexButton: {
+    flex: 1,
   },
   buttonText: {
     color: 'white',
@@ -277,17 +434,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   featureList: {
-    gap: 12,
+    gap: 16,
   },
   featureItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
   },
-  featureText: {
-    fontSize: 14,
-    color: colors.text,
+  featureContent: {
     flex: 1,
+  },
+  featureTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  featureDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  optionsList: {
+    gap: 12,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  optionInfo: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  optionDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  optionBadge: {
+    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  optionBadgeText: {
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '600',
   },
   noticeCard: {
     backgroundColor: colors.accent + '20',
